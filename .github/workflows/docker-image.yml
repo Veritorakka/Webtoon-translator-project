@@ -23,8 +23,11 @@ jobs:
 
     # Step 3: Build the Docker image using Dockerfile.test
     - name: Build the Docker image from Dockerfile.test
-      run: docker build . --file Dockerfile.test --tag webtoon-translator-test:$(date +%s)
+      run: |
+        export DOCKER_TAG=webtoon-translator-test:$(date +%s)
+        docker build . --file Dockerfile.test --tag $DOCKER_TAG
 
     # Step 4: Run tests in the Docker container
     - name: Run tests in Docker container
-      run: docker run --rm webtoon-translator-test
+      run: |
+        docker run --rm $DOCKER_TAG
