@@ -10,24 +10,18 @@ jobs:
 
   build-and-test:
 
-    runs-on: ubuntu-latest
+    # Käytä lokaalia Windows-runneria tagien mukaan
+    runs-on: [self-hosted, Windows, X64]
 
     steps:
     # Step 1: Checkout the code from the repository
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # Step 2: Set up Docker Buildx
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    # Step 3: Build the Docker image using Dockerfile.test
+    # Step 2: Build the Docker image using Dockerfile.test
     - name: Build the Docker image from Dockerfile.test
-      run: |
-        export DOCKER_TAG=webtoon-translator-test:$(date +%s)
-        docker build . --file Dockerfile.test --tag $DOCKER_TAG
+      run: docker build . --file Dockerfile.test --tag webtoon-translator-test:$(date +%s)
 
-    # Step 4: Run tests in the Docker container
+    # Step 3: Run tests in the Docker container
     - name: Run tests in Docker container
-      run: |
-        docker run --rm $DOCKER_TAG
+      run: docker run --rm webtoon-translator-test
