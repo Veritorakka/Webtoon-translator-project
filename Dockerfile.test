@@ -1,0 +1,37 @@
+# Use Python 3.8 base image
+FROM python:3.8-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install necessary tools like git, Tesseract, OpenGL (for OpenCV), and dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    tesseract-ocr \
+    libtesseract-dev \
+    libgl1-mesa-glx \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the requirements file
+COPY requirements.txt .
+
+# Install Python dependencies (including PyTorch with CUDA support)
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Clone YOLOv5 repository
+RUN git clone https://github.com/ultralytics/yolov5.git
+
+# Move to the YOLOv5 directory
+WORKDIR /app/yolov5
+
+# Install YOLOv5 dependencies
+RUN pip install -r requirements.txt
+
+# Return to the main app directory
+WORKDIR /app
+
+# Copy the Webtoon-translator project files to the container, including test files
+COPY . .
+
+# Set CMD to run tests by default
+CMD ["python", "-m", "unittest", "discover", "-s", "."]
