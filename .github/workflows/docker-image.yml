@@ -1,0 +1,30 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build-and-test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the code from the repository
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Step 2: Set up Docker Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    # Step 3: Build the Docker image using Dockerfile.test
+    - name: Build the Docker image from Dockerfile.test
+      run: docker build . --file Dockerfile.test --tag webtoon-translator-test:$(date +%s)
+
+    # Step 4: Run tests in the Docker container
+    - name: Run tests in Docker container
+      run: docker run --rm webtoon-translator-test
