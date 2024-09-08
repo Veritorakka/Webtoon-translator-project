@@ -4,6 +4,9 @@ import cv2
 import pytesseract  # type: ignore
 import os
 import numpy as np
+import yolov5
+import platform
+import pathlib
 
 # Disable PIL's image size limit (useful for large images)
 Image.MAX_IMAGE_PIXELS = None
@@ -21,57 +24,69 @@ def letterbox_image(img, new_shape=(1280, 1280), color=(114, 114, 114)):
     
     return img_letterboxed, ratio, dw, dh
 
+# Function to handle platform-specific path compatibility (Windows vs Linux)
+def ensure_path_compatibility():
+    plt = platform.system()
+    if plt == 'Windows':
+        pathlib.PosixPath = pathlib.WindowsPath
+    else:
+        pathlib.WindowsPath = pathlib.PosixPath
+
 # Function to run YOLOv5 and detect speech bubbles
-def detect_speech_bubbles(image_path, model_path='Bubbledect.pt'):
+def detect_speech_bubbles(image_path, model_path='Bubbledetect.pt'):
     img = cv2.imread(image_path)
-    original_shape = img.shape[:2]  # original image height and width
+    original_shape = img.shape[:2]
 
-    # Load the YOLOv5 model from the local repository
-    model = torch.load(model_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
-
-    # Letterbox the image
+    # Letterbox the image to 1280x1280 while preserving aspect ratio
     img_letterboxed, ratio, dw, dh = letterbox_image(img)
 
-    # Convert letterboxed image to PIL Image and pass to model
-    img_pil = Image.fromarray(img_letterboxed)
-    results = model(img_pil)
+    # Ensure path compatibility across platforms
+    ensure_path_compatibility()
+
+    # Load the YOLOv5 model
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    try:
+        model = yolov5.load(model_path, device=device)
+        print(f"Model loaded from {model_path}")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return []
+
+    # Run inference on the model
+    try:
+        print("Running inference on the model...")
+        results = model(img_letterboxed)  # Call model directly with image
+        print("Inference completed.")
+    except Exception as e:
+        print(f"Error during inference: {e}")
+        return []
 
     # Extract detection results and rescale coordinates back to original image size
-    detections = results.xyxy[0]  # Coordinates (x1, y1, x2, y2)
-    detections[:, [0, 2]] = (detections[:, [0, 2]] - dw) / ratio  # Rescale x-coordinates
-    detections[:, [1, 3]] = (detections[:, [1, 3]] - dh) / ratio  # Rescale y-coordinates
+    try:
+        detections = results.xyxy[0]  # Get the predictions for the first image
+        detections = detections.cpu().numpy()  # Convert to numpy array
+        detections[:, [0, 2]] = (detections[:, [0, 2]] - dw) / ratio  # Rescale x-coordinates
+        detections[:, [1, 3]] = (detections[:, [1, 3]] - dh) / ratio  # Rescale y-coordinates
+        print(f"Detections found: {len(detections)}")
+    except Exception as e:
+        print(f"Error processing detections: {e}")
+        return []
+
     return detections
 
-# Function to extract text from an image using Tesseract, with language selection
-def extract_text_from_image(image_path, output_txt_path, lang='chi_sim'):
+
+def extract_text_from_image(image_path, output_txt_path, lang='eng'):
     img = Image.open(image_path)
+    
+    # Muunna kuva harmaasävyksi ja tee binääristäminen
+    img = img.convert('L')  # Harmaasävy
+    img = img.point(lambda x: 0 if x < 128 else 255, '1')  # Binääristäminen
+
+    # Poimi teksti
     text = pytesseract.image_to_string(img, lang=lang)
+    
+    # Tallenna teksti tiedostoon
     with open(output_txt_path, 'w') as f:
         f.write(text)
 
-# Main function to process images, can be called externally
-def process_images(input_dir="input_images", temp_dir="temp_images", output_dir="output_texts", lang='chi_sim'):
-    os.makedirs(temp_dir, exist_ok=True)
-    os.makedirs(output_dir, exist_ok=True)
-
-    for img_name in os.listdir(input_dir):
-        img_path = os.path.join(input_dir, img_name)
-        
-        # Detect speech bubbles in the image
-        detections = detect_speech_bubbles(img_path)
-        
-        for i, det in enumerate(detections):
-            # Extract bounding box coordinates
-            x1, y1, x2, y2, conf, cls = det
-
-            # Crop the speech bubble from the original image using rescaled coordinates
-            img = cv2.imread(img_path)
-            crop_img = img[int(y1):int(y2), int(x1):int(x2)]
-
-            # Save the cropped image as a temp file
-            temp_img_path = os.path.join(temp_dir, f"{img_name}_bubble_{i}.png")
-            cv2.imwrite(temp_img_path, crop_img)
-
-            # Extract text from the temp image using the specified language
-            temp_txt_path = os.path.join(output_dir, f"{img_name}_bubble_{i}.txt")
-            extract_text_from_image(temp_img_path, temp_txt_path, lang=lang)

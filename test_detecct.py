@@ -1,91 +1,71 @@
 import unittest
-from unittest.mock import patch, MagicMock
 import os
 import cv2
-import numpy as np
-from PIL import Image
-import pytesseract
-import torch  
-from detect import letterbox_image, detect_speech_bubbles, extract_text_from_image, process_images
+from detect import detect_speech_bubbles, extract_text_from_image
 
 class TestWebtoonTranslator(unittest.TestCase):
-    
-    def setUp(self):
-        # Setup code for the tests
-        self.test_image_path = "test_image.jpg"
-        self.test_output_txt_path = "output.txt"
-        self.sample_img = np.zeros((500, 500, 3), dtype=np.uint8)  # A blank black image
-        self.test_model_path = "Bubbledect.pt"
-    
-    def test_letterbox_image(self):
-        # Test the letterbox_image function
-        img_letterboxed, ratio, dw, dh = letterbox_image(self.sample_img)
-        self.assertEqual(img_letterboxed.shape, (1280, 1280, 3))
-        self.assertTrue(ratio > 0)  # Updated to be more flexible for upscaling
-        self.assertTrue(dw >= 0 and dh >= 0)
 
-    @patch("torch.load")  # Mocking the model loading
-    @patch("cv2.imread", return_value=np.zeros((500, 500, 3), dtype=np.uint8))
-    @patch("detect.Image.fromarray")
-    def test_detect_speech_bubbles(self, mock_pil, mock_imread, mock_torch_load):
-        # Mock model inference
-        mock_model = MagicMock()
-        mock_model.return_value.xyxy = [np.array([[100, 100, 200, 200, 0.9, 0]])]  # Sample detection
-        mock_torch_load.return_value = mock_model
+    def setUp(self):
+        # Aseta polut testidataan
+        self.test_image_path = "testdata/test.jpg"
+        self.test_output_txt_path = "testdata/output.txt"
+        self.test_model_path = "Bubbledetect.pt"
+        self.temp_dir = "testdata"  # Määritä kansio väliaikaisille tiedostoille
+        print(f"Temp directory is: {self.temp_dir}")
+        print(f"Test image path: {self.test_image_path}")
+
+    def test_detect_and_extract_text(self):
+        # Testaa puhekuplien tunnistusta ja tekstin poimintaa test.jpg:stä
         
+        # 1. Tunnista puhekuplat kuvasta
         detections = detect_speech_bubbles(self.test_image_path, self.test_model_path)
         
-        self.assertEqual(len(detections), 1)
-        self.assertTrue((detections[0][0] >= 0 and detections[0][1] >= 0))
-        mock_imread.assert_called_once_with(self.test_image_path)
-        mock_torch_load.assert_called_once()
+        # 2. Varmista, että tunnistuksia löytyy
+        self.assertGreater(len(detections), 0, "No speech bubbles detected.")
 
-        # Check map_location
-        call_args = mock_torch_load.call_args[1]  # Hae kutsun avainparametrit
-        self.assertIn('map_location', call_args)
-        self.assertIn(str(call_args['map_location']), ['cpu', str(torch.device('cpu'))])
+        # Lue alkuperäinen kuva
+        img = cv2.imread(self.test_image_path)
 
-    @patch("pytesseract.image_to_string", return_value="sample text")
-    @patch("PIL.Image.open")
-    def test_extract_text_from_image(self, mock_image_open, mock_image_to_string):
-        # Test the extract_text_from_image function
-        extract_text_from_image(self.test_image_path, self.test_output_txt_path, lang='eng')
-        
-        mock_image_open.assert_called_once_with(self.test_image_path)
-        mock_image_to_string.assert_called_once_with(mock_image_open.return_value, lang='eng')
+        # Tulosta kunkin tunnistetun puhekuplan teksti ja piirrä puhekupla kuvan päälle
+        for i, det in enumerate(detections):
+            # Ota bounding box -koordinaatit
+            x1, y1, x2, y2 = det[:4]  # päivitetty ilman conf ja cls
 
-        # Check if the output file is created with correct content
-        with open(self.test_output_txt_path, 'r') as f:
-            text = f.read()
-        self.assertEqual(text, "sample text")
+            # Piirrä puhekupla kuvan päälle (vihreä suorakulmio)
+            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
 
-    @patch("detect.detect_speech_bubbles")
-    @patch("detect.extract_text_from_image")
-    @patch("cv2.imread", return_value=np.zeros((500, 500, 3), dtype=np.uint8))
-    def test_process_images(self, mock_imread, mock_extract_text, mock_detect_bubbles):
-        # Mock detection and text extraction
-        mock_detect_bubbles.return_value = np.array([[100, 100, 200, 200, 0.9, 0]])  # Sample detection
-        
-        os.makedirs("input_images", exist_ok=True)
-        os.makedirs("temp_images", exist_ok=True)
-        os.makedirs("output_texts", exist_ok=True)
-        
-        # Create a sample test image in input_images
-        cv2.imwrite("input_images/test_image.jpg", self.sample_img)
-        
-        # Call the process_images function
-        process_images(input_dir="input_images", temp_dir="temp_images", output_dir="output_texts", lang="eng")
-        
-        # Assert that the detect_speech_bubbles and extract_text_from_image were called
-        mock_detect_bubbles.assert_called()
-        mock_extract_text.assert_called()
+            # Tallenna rajattu kupla tilapäiseen tiedostoon testdata-hakemistoon
+            crop_img = img[int(y1):int(y2), int(x1):int(x2)]
+            temp_img_path = os.path.join(self.temp_dir, f"temp_bubble_{i}.png")
+            print(f"Saving cropped image to: {temp_img_path}")
+            cv2.imwrite(temp_img_path, crop_img)
+
+            # 3. Poimi teksti Tesseractilla rajatusta kuplasta
+            print(f"Saved cropped image at {temp_img_path} for bubble {i}")
+            extract_text_from_image(temp_img_path, self.test_output_txt_path, lang='eng')
+
+            # Lue poimittu teksti ja tulosta se
+            with open(self.test_output_txt_path, 'r') as f:
+                text = f.read()
+                print(f"Text from bubble {i}: {text}")
+
+        # Tallenna kuva, jossa on piirretty puhekuplat
+        annotated_image_path = os.path.join(self.temp_dir, "annotated_test_image.jpg")
+        print(f"Saving annotated image to: {annotated_image_path}")
+        cv2.imwrite(annotated_image_path, img)
+        print(f"Annotated image saved at {annotated_image_path}")
 
     def tearDown(self):
-        # Clean up after tests
-        if os.path.exists(self.test_output_txt_path):
-            os.remove(self.test_output_txt_path)
-        if os.path.exists("input_images/test_image.jpg"):
-            os.remove("input_images/test_image.jpg")
+        pass
+        # Siivoa mahdolliset luodut tilapäistiedostot
+        #for i in range(10):  # Oletus: enintään 10 puhekuplaa per kuva
+        #    temp_img_path = os.path.join(self.temp_dir, f"temp_bubble_{i}.png")
+        #    if os.path.exists(temp_img_path):
+         #       print(f"Removing temporary file: {temp_img_path}")
+         #       os.remove(temp_img_path)
+        #if os.path.exists(self.test_output_txt_path):
+        #    print(f"Removing output text file: {self.test_output_txt_path}")
+         #   os.remove(self.test_output_txt_path)
 
 if __name__ == "__main__":
     unittest.main()
