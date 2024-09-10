@@ -1,71 +1,91 @@
 import unittest
 import os
 import cv2
+import numpy as np
 from detect import detect_speech_bubbles, extract_text_from_image
+from PIL import Image
 
 class TestWebtoonTranslator(unittest.TestCase):
 
     def setUp(self):
         # Aseta polut testidataan
         self.test_image_path = "testdata/test.jpg"
-        self.test_output_txt_path = "testdata/output.txt"
+        self.test_txt_path = "testdata/test.txt"
         self.test_model_path = "Bubbledetect.pt"
-        self.temp_dir = "testdata"  # Määritä kansio väliaikaisille tiedostoille
-        print(f"Temp directory is: {self.temp_dir}")
+        self.bubble_image_paths = [
+            "testdata/bubble_0.png",
+            "testdata/bubble_1.png"
+        ]
         print(f"Test image path: {self.test_image_path}")
+        print(f"Bubble images: {self.bubble_image_paths}")
+        print(f"Model path: {self.test_model_path}")
 
-    def test_detect_and_extract_text(self):
-        # Testaa puhekuplien tunnistusta ja tekstin poimintaa test.jpg:stä
-        
-        # 1. Tunnista puhekuplat kuvasta
+    def test_detect_speech_bubbles(self):
+        # Lataa alkuperäinen kuva saadaksesi sen mitat
+        img = cv2.imread(self.test_image_path)
+        img_height, img_width = img.shape[:2]
+
+        # Lue oikeat koordinaatit tiedostosta ja jätä luokka pois
+        with open(self.test_txt_path, 'r') as f:
+            expected_coordinates = []
+            for line in f:
+                values = list(map(float, line.split()[1:]))  # Jätä luokka pois
+                # Skaalaa suhteelliset koordinaatit takaisin pikselikoordinaateiksi
+                x_center, y_center, width, height = values
+                x1 = (x_center - width / 2) * img_width
+                y1 = (y_center - height / 2) * img_height
+                x2 = (x_center + width / 2) * img_width
+                y2 = (y_center + height / 2) * img_height
+                expected_coordinates.append([x1, y1, x2, y2])
+
+        # Tunnista puhekuplat
         detections = detect_speech_bubbles(self.test_image_path, self.test_model_path)
-        
-        # 2. Varmista, että tunnistuksia löytyy
+
+        # Varmista, että tunnistuksia löytyy
         self.assertGreater(len(detections), 0, "No speech bubbles detected.")
 
-        # Lue alkuperäinen kuva
-        img = cv2.imread(self.test_image_path)
+        # Määritä sallittu prosentuaalinen ja absoluuttinen poikkeama
+        tolerance_percent = 0.05  # 5% poikkeama
+        tolerance_absolute = 20   # 10 pikselin absoluuttinen poikkeama
 
-        # Tulosta kunkin tunnistetun puhekuplan teksti ja piirrä puhekupla kuvan päälle
+        # Vertaile tunnistettuja koordinaatteja test.txt tiedoston koordinaatteihin
         for i, det in enumerate(detections):
-            # Ota bounding box -koordinaatit
-            x1, y1, x2, y2 = det[:4]  # päivitetty ilman conf ja cls
+            detected_coords = det[:4]  # x1, y1, x2, y2
+            expected_coords = expected_coordinates[i]
 
-            # Piirrä puhekupla kuvan päälle (vihreä suorakulmio)
-            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+            # Lasketaan suhteelliset erot ja verrataan myös absoluuttisia eroja
+            relative_diff = np.abs(np.array(detected_coords) - np.array(expected_coords)) / (np.array(expected_coords) + 1e-6)
+            absolute_diff = np.abs(np.array(detected_coords) - np.array(expected_coords))
 
-            # Tallenna rajattu kupla tilapäiseen tiedostoon testdata-hakemistoon
-            crop_img = img[int(y1):int(y2), int(x1):int(x2)]
-            temp_img_path = os.path.join(self.temp_dir, f"temp_bubble_{i}.png")
-            print(f"Saving cropped image to: {temp_img_path}")
-            cv2.imwrite(temp_img_path, crop_img)
+            # Tarkista, että ero on joko suhteellinen tai absoluuttinen rajoissa
+            max_relative_diff = np.max(relative_diff)
+            max_absolute_diff = np.max(absolute_diff)
 
-            # 3. Poimi teksti Tesseractilla rajatusta kuplasta
-            print(f"Saved cropped image at {temp_img_path} for bubble {i}")
-            extract_text_from_image(temp_img_path, self.test_output_txt_path, lang='eng')
+            self.assertTrue(
+                max_relative_diff <= tolerance_percent or max_absolute_diff <= tolerance_absolute,
+                f"Detected coordinates {detected_coords} do not match expected {expected_coords} within {tolerance_percent*100}% or {tolerance_absolute} pixels."
+            )
+        print(f"Speech bubble detection passed for {self.test_image_path}")
 
-            # Lue poimittu teksti ja tulosta se
-            with open(self.test_output_txt_path, 'r') as f:
-                text = f.read()
-                print(f"Text from bubble {i}: {text}")
+    def test_extract_text_from_bubble_images(self):
+        # Testaa tekstin poimintaa kahdesta kuplakuvasta
 
-        # Tallenna kuva, jossa on piirretty puhekuplat
-        annotated_image_path = os.path.join(self.temp_dir, "annotated_test_image.jpg")
-        print(f"Saving annotated image to: {annotated_image_path}")
-        cv2.imwrite(annotated_image_path, img)
-        print(f"Annotated image saved at {annotated_image_path}")
+        for i, image_path in enumerate(self.bubble_image_paths):
+            # Lataa kuva tiedostosta
+            bubble_img = Image.open(image_path)
+
+            # Poimi teksti kuvasta Tesseractilla
+            print(f"Extracting text for bubble {i}")
+            text = extract_text_from_image(bubble_img, output_txt_path=None, lang='eng')
+
+            # Tulosta poimittu teksti
+            print(f"Text from bubble {i} (image: {image_path}): {text}")
+
+            # Tarkista, että tekstiä on poimittu
+            self.assertGreater(len(text.strip()), 0, f"No text extracted from {image_path}")
 
     def tearDown(self):
-        pass
-        # Siivoa mahdolliset luodut tilapäistiedostot
-        #for i in range(10):  # Oletus: enintään 10 puhekuplaa per kuva
-        #    temp_img_path = os.path.join(self.temp_dir, f"temp_bubble_{i}.png")
-        #    if os.path.exists(temp_img_path):
-         #       print(f"Removing temporary file: {temp_img_path}")
-         #       os.remove(temp_img_path)
-        #if os.path.exists(self.test_output_txt_path):
-        #    print(f"Removing output text file: {self.test_output_txt_path}")
-         #   os.remove(self.test_output_txt_path)
+        pass  # Ei tarvita tiedostojen poistamista, koska tilapäistiedostoja ei luoda
 
 if __name__ == "__main__":
     unittest.main()

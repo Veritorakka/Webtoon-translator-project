@@ -1,10 +1,10 @@
 import torch
-from PIL import Image
+from PIL import Image, ImageEnhance
 import cv2
 import pytesseract  # type: ignore
 import os
 import numpy as np
-import yolov5
+import yolov5 # type: ignore
 import platform
 import pathlib
 
@@ -76,17 +76,64 @@ def detect_speech_bubbles(image_path, model_path='Bubbledetect.pt'):
     return detections
 
 
-def extract_text_from_image(image_path, output_txt_path, lang='eng'):
-    img = Image.open(image_path)
-    
-    # Muunna kuva harmaasävyksi ja tee binääristäminen
-    img = img.convert('L')  # Harmaasävy
-    img = img.point(lambda x: 0 if x < 128 else 255, '1')  # Binääristäminen
+def resize_image_if_needed(img, min_size=(500, 500)):
+    """
+    Check if the image width or height is below the given threshold (500x500 by default).
+    If so, resize the image so that the shorter side is at least min_size.
+    """
+    width, height = img.size
+    if width < min_size[0] or height < min_size[1]:
+        # Calculate the scaling factor while preserving the aspect ratio
+        scale_factor = max(min_size[0] / width, min_size[1] / height)
+        new_size = (int(width * scale_factor), int(height * scale_factor))
+        img = img.resize(new_size, Image.LANCZOS)  # Use LANCZOS filter for resizing
+        print(f"Image resized to: {new_size}")
+    return img
 
-    # Poimi teksti
-    text = pytesseract.image_to_string(img, lang=lang)
+
+
+
+
+
+def extract_text_from_image(image, output_txt_path=None, lang='eng', try_multiple_psm=True):
+    # Check if the input is a file path or a direct PIL image
+    if isinstance(image, str):
+        img = Image.open(image)
+    else:
+        img = image
+
+    # Resize the image if it is smaller than 500x500 pixels
+    img = resize_image_if_needed(img, min_size=(500, 500))
     
-    # Tallenna teksti tiedostoon
-    with open(output_txt_path, 'w') as f:
-        f.write(text)
+    # Enhance the contrast and sharpness of the image
+    contrast_enhancer = ImageEnhance.Contrast(img)
+    img = contrast_enhancer.enhance(2.0)  # Improve contrast
+    
+    sharpness_enhancer = ImageEnhance.Sharpness(img)
+    img = sharpness_enhancer.enhance(2.0)  # Improve sharpness
+
+    # Convert the image to grayscale and apply binarization
+    img = img.convert('L')  # Grayscale
+    img = img.point(lambda x: 0 if x < 128 else 255, '1')  # Binarization
+
+    # Try extracting the text without specifying a PSM mode first
+    text = pytesseract.image_to_string(img, lang=lang)
+
+    # If multiple PSM modes are allowed, try them if no text is found
+    if try_multiple_psm and not text.strip():
+        print("No text found, trying with different PSM modes...")
+        for psm_mode in [6, 3, 4]:  # Try PSM 6, 3, and 4
+            config = f'--psm {psm_mode}'
+            text = pytesseract.image_to_string(img, lang=lang, config=config)
+            if text.strip():
+                print(f"Text found with PSM {psm_mode}")
+                break
+
+    # If an output file path is provided, write the text to a file
+    if output_txt_path:
+        with open(output_txt_path, 'w') as f:
+            f.write(text)
+
+    return text
+
 
