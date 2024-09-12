@@ -16,9 +16,6 @@ class TestWebtoonTranslator(unittest.TestCase):
             "testdata/bubble_0.png",
             "testdata/bubble_1.png"
         ]
-        print(f"Test image path: {self.test_image_path}")
-        print(f"Bubble images: {self.bubble_image_paths}")
-        print(f"Model path: {self.test_model_path}")
 
     def test_detect_speech_bubbles(self):
         # Lataa alkuperäinen kuva saadaksesi sen mitat
@@ -65,7 +62,6 @@ class TestWebtoonTranslator(unittest.TestCase):
                 max_relative_diff <= tolerance_percent or max_absolute_diff <= tolerance_absolute,
                 f"Detected coordinates {detected_coords} do not match expected {expected_coords} within {tolerance_percent*100}% or {tolerance_absolute} pixels."
             )
-        print(f"Speech bubble detection passed for {self.test_image_path}")
 
     def test_extract_text_from_bubble_images(self):
         # Testaa tekstin poimintaa kahdesta kuplakuvasta
@@ -75,11 +71,7 @@ class TestWebtoonTranslator(unittest.TestCase):
             bubble_img = Image.open(image_path)
 
             # Poimi teksti kuvasta Tesseractilla
-            print(f"Extracting text for bubble {i}")
             text = extract_text_from_image(bubble_img, output_txt_path=None, lang='eng')
-
-            # Tulosta poimittu teksti
-            print(f"Text from bubble {i} (image: {image_path}): {text}")
 
             # Tarkista, että tekstiä on poimittu
             self.assertGreater(len(text.strip()), 0, f"No text extracted from {image_path}")

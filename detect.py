@@ -44,20 +44,17 @@ def detect_speech_bubbles(image_path, model_path='Bubbledetect.pt'):
     ensure_path_compatibility()
 
     # Load the YOLOv5 model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')
     
     try:
         model = yolov5.load(model_path, device=device)
-        print(f"Model loaded from {model_path}")
     except Exception as e:
         print(f"Error loading model: {e}")
         return []
 
     # Run inference on the model
     try:
-        print("Running inference on the model...")
         results = model(img_letterboxed)  # Call model directly with image
-        print("Inference completed.")
     except Exception as e:
         print(f"Error during inference: {e}")
         return []
@@ -68,7 +65,6 @@ def detect_speech_bubbles(image_path, model_path='Bubbledetect.pt'):
         detections = detections.cpu().numpy()  # Convert to numpy array
         detections[:, [0, 2]] = (detections[:, [0, 2]] - dw) / ratio  # Rescale x-coordinates
         detections[:, [1, 3]] = (detections[:, [1, 3]] - dh) / ratio  # Rescale y-coordinates
-        print(f"Detections found: {len(detections)}")
     except Exception as e:
         print(f"Error processing detections: {e}")
         return []
@@ -87,12 +83,7 @@ def resize_image_if_needed(img, min_size=(500, 500)):
         scale_factor = max(min_size[0] / width, min_size[1] / height)
         new_size = (int(width * scale_factor), int(height * scale_factor))
         img = img.resize(new_size, Image.LANCZOS)  # Use LANCZOS filter for resizing
-        print(f"Image resized to: {new_size}")
     return img
-
-
-
-
 
 
 def extract_text_from_image(image, output_txt_path=None, lang='eng', try_multiple_psm=True):
@@ -121,12 +112,10 @@ def extract_text_from_image(image, output_txt_path=None, lang='eng', try_multipl
 
     # If multiple PSM modes are allowed, try them if no text is found
     if try_multiple_psm and not text.strip():
-        print("No text found, trying with different PSM modes...")
         for psm_mode in [6, 3, 4]:  # Try PSM 6, 3, and 4
             config = f'--psm {psm_mode}'
             text = pytesseract.image_to_string(img, lang=lang, config=config)
             if text.strip():
-                print(f"Text found with PSM {psm_mode}")
                 break
 
     # If an output file path is provided, write the text to a file
@@ -135,5 +124,3 @@ def extract_text_from_image(image, output_txt_path=None, lang='eng', try_multipl
             f.write(text)
 
     return text
-
-

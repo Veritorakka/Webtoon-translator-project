@@ -1,4 +1,4 @@
-torch>=1.7.0+cu110  # PyTorch CUDA 11.0 compatible version
+torch>=2.0.0+cu126
 numpy
 opencv-python
 matplotlib
