@@ -1,6 +1,9 @@
 import unittest
 from translate import translate_text  # Importoi käännösfunktio tiedostosta translator.py
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 class TestTranslateText(unittest.TestCase):
     
     def test_translate_chinese_to_english(self):

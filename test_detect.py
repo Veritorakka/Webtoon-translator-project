@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from detect import detect_speech_bubbles, extract_text_from_image
 from PIL import Image
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 class TestWebtoonTranslator(unittest.TestCase):
 

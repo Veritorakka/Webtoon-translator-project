@@ -22,5 +22,5 @@ def translate_text(input_text, lang):
     translated = model.generate(**tokens)
 
     # Purkaa käännös tekstiksi
-    translated_text = tokenizer.batch_decode(translated, skip_special_tokens=True)
+    translated_text = tokenizer.batch_decode(translated, skip_special_tokens=True, clean_up_tokenization_spaces=False)
     return translated_text

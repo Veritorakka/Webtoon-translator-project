@@ -1,33 +1,32 @@
-# Use NVIDIA CUDA base image
-FROM nvidia/cuda:11.0-base
+# Käytä Python 3.8 -pohjakuvaa
+FROM python:3.8-slim
 
-# Set working directory
+# Aseta työhakemisto
 WORKDIR /app
 
-# Install necessary tools like git, Tesseract, Marian-MT, and dependencies
+# Asenna tarvittavat työkalut, kuten Tesseract ja tarvittavat kielet (kiina, japani, korea) sekä OpenGL
 RUN apt-get update && apt-get install -y \
-    git \
     tesseract-ocr \
+    tesseract-ocr-chi-sim \  
+    tesseract-ocr-jpn \      
+    tesseract-ocr-kor \
+    tesseract-ocr-eng\      
     libtesseract-dev \
+    libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone YOLOv5 repository
-RUN git clone https://github.com/ultralytics/yolov5.git
 
-# Move to the YOLOv5 directory
-WORKDIR /app/yolov5
+# Aseta Tesseractin kielitiedoston sijainti
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 
-# Copy the requirements file
+# Kopioi requirements-tiedosto konttiin
 COPY requirements.txt .
 
-# Install CUDA-compatible PyTorch, Marian-MT, and other dependencies
+# Asenna Python-riippuvuudet (PyTorchin ja muiden kirjastojen kanssa)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Return to the main app directory
-WORKDIR /app
-
-# Copy the Webtoon-translator project files to the container, including Bubbledect.pt
+# Kopioi Webtoon-translator-projektin tiedostot ja testidata konttiin
 COPY . .
 
-# Set the entry point command
-ENTRYPOINT ["python", "main.py"]
+# Aseta oletuskomento suorittamaan testit
+CMD ["python", "main.py"]

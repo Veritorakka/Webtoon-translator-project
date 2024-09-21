@@ -7,10 +7,17 @@ WORKDIR /app
 # Asenna tarvittavat työkalut, kuten git, Tesseract ja OpenGL (OpenCV:tä varten)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
+    tesseract-ocr-chi-sim \  
+    tesseract-ocr-jpn \      
+    tesseract-ocr-kor \
+    tesseract-ocr-eng\      
     libtesseract-dev \
     libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
+
+# Aseta Tesseractin kielitiedoston sijainti
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 # Kopioi requirements-tiedosto konttiin
 COPY requirements.txt .
 
@@ -19,9 +26,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopioi Webtoon-translator-projektin tiedostot ja testidata konttiin
 COPY . .
-
-# Tarkista, että Bubbledetect.pt-malli on olemassa ja aseta sille oikeudet
-RUN ls /app && chmod 644 /app/Bubbledetect.pt
 
 # Aseta oletuskomento suorittamaan testit
 CMD ["python", "-m", "unittest", "discover", "-s", "."]
