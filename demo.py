@@ -17,7 +17,7 @@ def process_image(image_path, model_path='Bubbledetect.pt', lang='zh-en'):
     print("Detecting speech bubbles...")
     detections = detect_speech_bubbles(image_path, model_path)
 
-    if detections is None or detections.size == 0:
+    if detections is None or len(detections) == 0:
         print("No speech bubbles detected.")
         return
 

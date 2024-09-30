@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webtoon Translator</title>
+    <style>
+        /* Set the image and translations side by side */
+        #container {
+            display: flex;
+            justify-content: space-between;
+        }
+        #imageContainer {
+            flex: 1;
+            text-align: center;
+        }
+        #translations {
+            flex: 1;
+            margin-left: 20px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        /* Error message styling */
+        #errorMessage {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Webtoon Translator</h1>
+
+    <!-- Form for uploading the image and selecting the language -->
+    <form id="uploadForm">
+        <input type="file" id="imageUpload" accept="image/*" required>
+        
+        <!-- Dropdown menu for selecting the language -->
+        <label for="languageSelect">Choose language:</label>
+        <select id="languageSelect">
+            <option value="zh-en">Chinese</option>
+            <option value="ja-en">Japanese</option>
+            <option value="ko-en">Korean</option>
+        </select>
+        
+        <button type="submit">Upload and Translate</button>
+    </form>
+
+    <!-- Error message area -->
+    <p id="errorMessage"></p>
+
+    <!-- Container for displaying the image on the left and translations on the right -->
+    <div id="container">
+        <!-- Area to display the marked image -->
+        <div id="imageContainer">
+            <h2>Marked Image</h2>
+            <img id="markedImage" alt="Marked Image">
+        </div>
+
+        <!-- Area to display translations -->
+        <div id="translations">
+            <h2>Translations</h2>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const markedImage = document.getElementById('markedImage');
+        const translationsDiv = document.getElementById('translations');
+        const errorMessage = document.getElementById('errorMessage');
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('imageUpload');
+            const languageSelect = document.getElementById('languageSelect');
+            const formData = new FormData();
+            const file = fileInput.files[0];
+
+            // Clear any previous error messages
+            errorMessage.textContent = '';
+
+            // Validate that the file is an image
+            const validImageTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!validImageTypes.includes(file.type)) {
+                errorMessage.textContent = 'Only image files (JPG, PNG, GIF) are allowed.';
+                return; // Stop form submission if the file is not an image
+            }
+
+            formData.append('file', file);
+            formData.append('language', languageSelect.value);
+
+            // Send the image and selected language to the backend
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            // Display the marked image on the left
+            if (result.marked_image) {
+                markedImage.src = `/${result.marked_image}`;  // Add '/' to form the correct URL
+            } else {
+                console.error("Marked image path not found in response");
+            }
+
+            // Display translations on the right
+            translationsDiv.innerHTML = ''; // Clear the translations area
+            result.bubbles.forEach(bubble => {
+                const para = document.createElement('p');
+                para.textContent = `Bubble ${bubble.bubble_id}: ${bubble.translated_text}`;
+                translationsDiv.appendChild(para);
+            });
+        };
+    </script>
+</body>
+</html>

@@ -10,11 +10,10 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr-chi-sim \  
     tesseract-ocr-jpn \      
     tesseract-ocr-kor \
-    tesseract-ocr-eng\      
+    tesseract-ocr-eng \      
     libtesseract-dev \
     libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
-
 
 # Aseta Tesseractin kielitiedoston sijainti
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
@@ -22,11 +21,21 @@ ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 # Kopioi requirements-tiedosto konttiin
 COPY requirements.txt .
 
-# Asenna Python-riippuvuudet (PyTorchin ja muiden kirjastojen kanssa)
+# Asenna Python-riippuvuudet (Flask, PyTorch, ja muut kirjastot)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopioi Webtoon-translator-projektin tiedostot ja testidata konttiin
+# Kopioi projektin tiedostot ja testidata konttiin
 COPY . .
 
-# Aseta oletuskomento suorittamaan testit
-CMD ["python", "main.py"]
+# Luo kansio ladatuille kuville
+RUN mkdir -p /app/uploads
+
+# Aseta Flaskin ympäristömuuttujat
+ENV FLASK_APP=webapi.py
+ENV FLASK_RUN_HOST=0.0.0.0
+
+# Exponoi portti 5000 Flask-sovellukselle
+EXPOSE 5000
+
+# Aseta oletuskomento Flask-sovelluksen käynnistämiseen
+CMD ["flask", "run"]

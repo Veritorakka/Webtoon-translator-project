@@ -4,7 +4,7 @@ import cv2
 import pytesseract  # type: ignore
 import os
 import numpy as np
-import yolov5 # type: ignore
+from ultralytics import YOLO  # YOLOv8
 import platform
 import pathlib
 
@@ -32,22 +32,22 @@ def ensure_path_compatibility():
     else:
         pathlib.WindowsPath = pathlib.PosixPath
 
-# Function to run YOLOv5 and detect speech bubbles
+# Function to run YOLOv8 and detect speech bubbles
 def detect_speech_bubbles(image_path, model_path='Bubbledetect.pt'):
     img = cv2.imread(image_path)
     original_shape = img.shape[:2]
 
-    # Letterbox the image to 1280x1280 while preserving aspect ratio
+    # Letterbox the image to 640x640 while preserving aspect ratio
     img_letterboxed, ratio, dw, dh = letterbox_image(img)
 
     # Ensure path compatibility across platforms
     ensure_path_compatibility()
 
-    # Load the YOLOv5 model
+    # Load the YOLOv8 model
     device = torch.device('cpu')
     
     try:
-        model = yolov5.load(model_path, device=device)
+        model = YOLO(model_path)  # YOLOv8 model loading
     except Exception as e:
         print(f"Error loading model: {e}")
         return []
@@ -61,8 +61,7 @@ def detect_speech_bubbles(image_path, model_path='Bubbledetect.pt'):
 
     # Extract detection results and rescale coordinates back to original image size
     try:
-        detections = results.xyxy[0]  # Get the predictions for the first image
-        detections = detections.cpu().numpy()  # Convert to numpy array
+        detections = results[0].boxes.xyxy.cpu().numpy()  # Get the predictions for the first image
         detections[:, [0, 2]] = (detections[:, [0, 2]] - dw) / ratio  # Rescale x-coordinates
         detections[:, [1, 3]] = (detections[:, [1, 3]] - dh) / ratio  # Rescale y-coordinates
     except Exception as e:
