@@ -110,7 +110,7 @@
             translationsDiv.innerHTML = ''; // Clear the translations area
             result.bubbles.forEach(bubble => {
                 const para = document.createElement('p');
-                para.textContent = `Bubble ${bubble.bubble_id}: ${bubble.translated_text}`;
+                para.textContent = `Bubble ${bubble.bubble_id}: ${bubble.translated_text} (Context: ${bubble.context})`;
                 translationsDiv.appendChild(para);
             });
         };

@@ -5,9 +5,11 @@ matplotlib
 Pillow
 scipy
 pytesseract  # For text recognition with Tesseract OCR
-transformers==4.44.0  # For using Marian-MT translation model
+transformers  # For using Marian-MT translation model
 sentencepiece  # Required by Marian-MT and some transformer models
 ultralytics
 flask
 huggingface_hub
 sacremoses
+ollama
+opencv-contrib-python

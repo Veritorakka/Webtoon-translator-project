@@ -72,17 +72,19 @@ def detect_speech_bubbles(image_path, model_path='Bubbledetect.pt'):
 
 
 def resize_image_if_needed(img, min_size=(500, 500)):
-    """
-    Check if the image width or height is below the given threshold (500x500 by default).
-    If so, resize the image so that the shorter side is at least min_size.
-    """
     width, height = img.size
+    
+    # Jos kuvan leveys tai korkeus on alle minimitason
     if width < min_size[0] or height < min_size[1]:
-        # Calculate the scaling factor while preserving the aspect ratio
+        # Lasketaan skaalauskerroin
         scale_factor = max(min_size[0] / width, min_size[1] / height)
         new_size = (int(width * scale_factor), int(height * scale_factor))
-        img = img.resize(new_size, Image.LANCZOS)  # Use LANCZOS filter for resizing
+        
+        # Muutetaan kuva uudelleen käyttäen Lanczos-interpolointia
+        img = img.resize(new_size, Image.LANCZOS)
+    
     return img
+
 
 
 def extract_text_from_image(image, output_txt_path=None, lang='eng', try_multiple_psm=True):
@@ -104,14 +106,12 @@ def extract_text_from_image(image, output_txt_path=None, lang='eng', try_multipl
 
     # Convert the image to grayscale and apply binarization
     img = img.convert('L')  # Grayscale
-    img = img.point(lambda x: 0 if x < 128 else 255, '1')  # Binarization
+    img = img.point(lambda x: 0 if x < 140 else 255, '1')  # Binarization
 
-    # Try extracting the text without specifying a PSM mode first
-    text = pytesseract.image_to_string(img, lang=lang)
-
-    # If multiple PSM modes are allowed, try them if no text is found
-    if try_multiple_psm and not text.strip():
-        for psm_mode in [6, 3, 4]:  # Try PSM 6, 3, and 4
+    # Try extracting the text with specific PSM modes
+    text = ""
+    if try_multiple_psm:
+        for psm_mode in [6, 4, 3]:  # Try PSM 3, 7, and 6
             config = f'--psm {psm_mode}'
             text = pytesseract.image_to_string(img, lang=lang, config=config)
             if text.strip():
