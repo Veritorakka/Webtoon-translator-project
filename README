@@ -1,13 +1,5 @@
 # Webtoon Translator Project
 
-## Project Overview
-The **Webtoon Translator Project** is designed to detect speech bubbles in webtoon images using a trained YOLOv5 model and extract text from the speech bubbles using Tesseract OCR. The extracted text can then be translated using Marian-MT, a machine translation model. The project is capable of processing text in Chinese, Korean, and Japanese.
-
-## Features
-- **Speech Bubble Detection**: Uses a trained YOLOv5 model (`Bubbledect.pt`) to detect speech bubbles in webtoon images.
-- **Text Extraction**: Extracts text from the detected speech bubbles using Tesseract OCR, with support for Chinese, Korean, and Japanese languages.
-- **Machine Translation**: Translates the extracted text using Marian-MT for seamless language translation.
-
 ## Requirements
 - **CUDA 11.0+** (if using GPU)
 - **Python 3.8+**
@@ -15,4 +7,3 @@ The **Webtoon Translator Project** is designed to detect speech bubbles in webto
 
 The required Python libraries are specified in the `requirements.txt` file:
 
-torch>=1.7.0+cu110 # PyTorch CUDA 11.0 compatible version numpy opencv-python matplotlib Pillow scipy pytesseract # For text recognition with Tesseract OCR transformers # For using Marian-MT translation model sentencepiece # Required by Marian-MT models
